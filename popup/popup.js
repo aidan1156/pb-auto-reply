@@ -1,7 +1,3 @@
-// The popup is destroyed the moment it closes, so it holds no state and sends
-// nothing itself. It reads chrome.storage and writes intent back; the content
-// script, which is long-lived, does the actual work.
-
 const $ = (id) => document.getElementById(id);
 
 async function getConfig() {
@@ -73,7 +69,6 @@ function renderPending(config) {
     who.textContent = (conv.label || conv.id) + (conv.pending.mode === 'nudge' ? ' · conversation starter' : '');
     card.appendChild(who);
 
-    // Editable: fixing a word beats rejecting and waiting for a regenerate.
     const box = document.createElement('textarea');
     box.value = conv.pending.text;
     card.appendChild(box);
@@ -110,7 +105,6 @@ function renderPending(config) {
       await patchConfig((c) => {
         const target = c.conversations.find((x) => x.id === conv.id);
         if (target && target.pending) {
-          // Remember we decided about this message, so it is not re-drafted.
           target.lastHandledSeq = target.pending.basedOnSeq;
           target.pending = null;
         }

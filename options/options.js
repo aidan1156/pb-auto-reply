@@ -97,7 +97,6 @@ function textInput(value, onInput) {
   return el;
 }
 
-// Accept either a full conversation URL or a bare id.
 function normaliseId(value) {
   const m = String(value).match(/\/conversations\/([^/?#]+)/);
   return m ? m[1] : value;
@@ -124,8 +123,6 @@ $('save').onclick = async () => {
     return;
   }
 
-  // Keep whatever the content script has written since this page loaded, so
-  // saving settings does not wipe a draft or cached position.
   const { config } = await chrome.storage.local.get('config');
   const live = config || {};
   const merged = Object.assign({}, live, {

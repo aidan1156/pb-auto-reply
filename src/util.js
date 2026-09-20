@@ -5,9 +5,6 @@ autoSender.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 autoSender.log = (...args) => console.log('%c[pb]', 'color:#7c5cff;font-weight:bold', ...args);
 autoSender.warn = (...args) => console.warn('[pb]', ...args);
 
-// Waits until fn() returns the same value twice in a row across `quiet` ms.
-// Used instead of a MutationObserver because Angular mutates constantly and we
-// only care that the thing we are about to read has stopped changing.
 autoSender.waitForStable = async function (fn, { quiet = 400, timeout = 6000, interval = 150 } = {}) {
   const started = Date.now();
   let last = null;
@@ -26,8 +23,6 @@ autoSender.waitForStable = async function (fn, { quiet = 400, timeout = 6000, in
   return false;
 };
 
-// Relative timestamps in sidebar rows ("2 min", "Yesterday", "3:42 PM") change
-// on their own and would otherwise look like new activity.
 autoSender.stripTimestamps = function (s) {
   return String(s || '')
     .replace(/\b\d{1,2}:\d{2}\s?(AM|PM)?\b/gi, '')
@@ -38,18 +33,11 @@ autoSender.stripTimestamps = function (s) {
     .trim();
 };
 
-// Conversation id out of https://messages.google.com/web/conversations/<id>
 autoSender.convIdFromUrl = function (url) {
   const m = String(url || '').match(/\/conversations\/([^/?#]+)/);
   return m ? m[1] : null;
 };
 
-// Finds where the cached tail sits inside the freshly-read list, and returns
-// everything after it. Anchors on message content rather than ids, so it
-// survives page reloads without needing stable ids from the DOM.
-//
-// Returns { delta, matched } -- matched=false means we could not line the two
-// up and the caller needs to scroll back further or reseed.
 autoSender.diffFromAnchor = function (cached, visible, anchorLen = 5) {
   if (!cached.length) return { delta: visible, matched: true, seeded: false };
 
@@ -59,7 +47,6 @@ autoSender.diffFromAnchor = function (cached, visible, anchorLen = 5) {
   const key = (m) => (m.incoming ? 'i' : 'o') + '\u0000' + m.text;
   const tail = cached.slice(-k).map(key).join('\u0001');
 
-  // Search from the end: with an append-only log the last match is the right one.
   for (let start = visible.length - k; start >= 0; start--) {
     const window = visible.slice(start, start + k).map(key).join('\u0001');
     if (window === tail) {

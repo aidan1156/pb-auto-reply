@@ -1,15 +1,11 @@
 var autoSender = globalThis.autoSender || (globalThis.autoSender = {});
 
-// One tick at a time. Everything funnels through syncOpenThread(), so "a message
-// arrived in the thread we already had open" and "we just switched threads" are
-// the same code path -- the second just produces a bigger delta.
-
 const state = {
   busy: false,
-  debounceUntil: {}, // convId -> timestamp; wait for them to finish typing
-  inFlight: {},      // convId -> true while a draft request is out
+  debounceUntil: {},
+  inFlight: {},
   lastNudgeCheck: 0,
-  nudgeErrorUntil: {}, // convId -> timestamp; back off after a failed nudge
+  nudgeErrorUntil: {},
 };
 
 async function tick() {
@@ -33,32 +29,22 @@ async function tick() {
 async function step(config) {
   await autoSender.setRuntime({ status: 'running', currentConvId: autoSender.dom.currentConvId(), lastError: null });
 
-  // 1. An approved draft is queued work -- it may belong to a conversation that
-  //    is not open, so it takes priority and pulls us to that thread.
   const approved = config.conversations.find((c) => c.pending && c.pending.approved);
   if (approved) return handleApproved(config, approved);
 
-  // 2. Reconcile whatever thread is on screen.
   await syncOpenThread(config);
 
-  // 3. Draft if the latest message is theirs and we have not handled it.
   const drafted = await maybeDraft(config);
   if (drafted) return;
 
-  // 4. Stay put while there is unfinished business here (seconds, not hours --
-  //    a draft waiting on you does not pin the loop, it waits in the queue).
   const cur = autoSender.dom.currentConvId();
   if (cur && (state.inFlight[cur] || Date.now() < (state.debounceUntil[cur] || 0))) return;
 
-  // 5. Otherwise move to whichever monitored conversation has waited longest.
   const moved = await pickNext(config);
   if (moved) return;
 
-  // 6. Nothing live to do. Consider starting a conversation that has gone quiet.
   await maybeNudge(config);
 }
-
-// ---- syncing ----------------------------------------------------------------
 
 async function syncOpenThread(config) {
   const convId = autoSender.dom.currentConvId();
@@ -68,14 +54,10 @@ async function syncOpenThread(config) {
   if (!conv || !conv.enabled) return;
 
   await autoSender.dom.waitForThreadSettled();
-  // Re-check after waiting: the user may have clicked elsewhere meanwhile, and
-  // attributing these messages to the wrong conversation would corrupt the cache.
   if (autoSender.dom.currentConvId() !== convId) return;
 
   const cached = await autoSender.getMessages(convId);
 
-  // First time we have ever looked at this conversation: load history and store
-  // it without drafting. We reply to what arrives next, not to the backlog.
   if (!cached.length) {
     autoSender.log('seeding', conv.label || convId);
     const all = await autoSender.dom.backfill(config.settings.backfillRounds);
@@ -90,7 +72,6 @@ async function syncOpenThread(config) {
   let visible = autoSender.dom.readVisibleMessages();
   let diff = autoSender.diffFromAnchor(cached, visible);
 
-  // Anchor not on screen -- scroll back until we find where we left off.
   if (!diff.matched) {
     for (let i = 0; i < config.settings.backfillRounds && !diff.matched; i++) {
       if (!(await autoSender.dom.scrollUpOnce())) break;
@@ -101,8 +82,6 @@ async function syncOpenThread(config) {
   }
 
   if (!diff.matched) {
-    // We cannot line up old and new. Reseeding is safe; drafting off a history
-    // we do not understand is not, so this path never produces a reply.
     autoSender.warn('lost anchor in', convId, '- reseeding');
     const reseeded = await autoSender.replaceMessages(convId, visible);
     await markBacklogHandled(convId, reseeded);
@@ -118,10 +97,8 @@ async function syncOpenThread(config) {
     autoSender.log('delta', conv.label || convId, diff.delta.length, 'newest incoming:', last.incoming);
 
     if (last.incoming) {
-      // Wait for them to finish -- people send three messages in a row.
       state.debounceUntil[convId] = Date.now() + config.settings.debounceMs;
     } else {
-      // We, or you from your phone, spoke last. Drop any draft in flight.
       await autoSender.updateConversation(convId, (c) => { c.pending = null; });
     }
   } else {
@@ -129,9 +106,6 @@ async function syncOpenThread(config) {
   }
 }
 
-// History we loaded in bulk is context, not something to answer. Without this,
-// the draft step on the same tick sees an unanswered message at the end of the
-// backlog and replies to it.
 async function markBacklogHandled(convId, stored) {
   const last = stored[stored.length - 1];
   await autoSender.updateConversation(convId, (c) => {
@@ -147,13 +121,10 @@ async function noteSnippet(convId) {
   });
 }
 
-// ---- drafting ---------------------------------------------------------------
-
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NUDGE_CHECK_EVERY_MS = 60 * 1000;
 const NUDGE_ERROR_BACKOFF_MS = 60 * 60 * 1000;
 
-// Reply mode: the open conversation has an unanswered message from them.
 async function maybeDraft(config) {
   const convId = autoSender.dom.currentConvId();
   if (!convId) return false;
@@ -165,21 +136,12 @@ async function maybeDraft(config) {
   const msgs = await autoSender.getMessages(convId);
   const tail = msgs[msgs.length - 1];
   if (!tail || !tail.incoming) return false;
-  if (conv.lastHandledSeq === tail.seq) return false; // already decided about this one
+  if (conv.lastHandledSeq === tail.seq) return false;
 
   const outcome = await requestDraft(config, conv, msgs, { mode: 'reply' });
   return outcome === 'pending';
 }
 
-// Nudge mode: a monitored conversation has gone quiet for a week or more, in
-// either direction. Drafting only needs the cached transcript, so this works on
-// conversations that are not open -- a quiet thread never changes in the sidebar,
-// so the loop would otherwise never visit it. If a nudge is approved, the normal
-// send path opens the conversation, re-syncs, and discards it if anything new
-// arrived in the meantime.
-//
-// At most one attempt per quiet period: after a nudge (sent or declined) the
-// next one is another full week away.
 async function maybeNudge(config) {
   const now = Date.now();
   if (now - state.lastNudgeCheck < NUDGE_CHECK_EVERY_MS) return false;
@@ -205,14 +167,11 @@ async function maybeNudge(config) {
     } else {
       await autoSender.updateConversation(conv.id, (c) => { c.lastNudgeAt = now; });
     }
-    return outcome === 'pending'; // one per check
+    return outcome === 'pending';
   }
   return false;
 }
 
-// Shared by both modes. Returns 'pending' (a draft is waiting or approved),
-// 'quiet' (the model chose not to send), 'stale' (the conversation moved on while
-// we were drafting), or 'error'.
 async function requestDraft(config, conv, msgs, { mode, quietDays = 0 }) {
   const convId = conv.id;
   const tail = msgs[msgs.length - 1];
@@ -236,8 +195,6 @@ async function requestDraft(config, conv, msgs, { mode, quietDays = 0 }) {
       return 'error';
     }
 
-    // Did they say something else while we were thinking? If so this draft is
-    // answering a question that has moved on -- bin it and start again.
     const nowMsgs = await autoSender.getMessages(convId);
     const nowTail = nowMsgs[nowMsgs.length - 1];
     if (!nowTail || nowTail.seq !== tail.seq) {
@@ -279,13 +236,11 @@ async function requestDraft(config, conv, msgs, { mode, quietDays = 0 }) {
   }
 }
 
-// ---- sending ----------------------------------------------------------------
-
 async function handleApproved(config, conv) {
   if (autoSender.dom.currentConvId() !== conv.id) {
     const opened = await autoSender.dom.openConversation(conv.id);
     if (!opened.ok) await autoSender.pushLog({ convId: conv.id, kind: 'error', text: opened.error });
-    return; // next tick sends
+    return;
   }
 
   await syncOpenThread(config);
@@ -297,7 +252,6 @@ async function handleApproved(config, conv) {
   const msgs = await autoSender.getMessages(conv.id);
   const tail = msgs[msgs.length - 1];
 
-  // Checked again here, not just at draft time: an approval can sit for hours.
   if (!tail || tail.seq !== pending.basedOnSeq) {
     autoSender.log('approved draft is stale, discarding');
     await autoSender.updateConversation(conv.id, (c) => { c.pending = null; });
@@ -321,8 +275,6 @@ async function handleApproved(config, conv) {
   }
 }
 
-// ---- scheduling -------------------------------------------------------------
-
 async function pickNext(config) {
   const rows = autoSender.dom.readSidebarRows();
   const byId = new Map(rows.map((r) => [r.id, r]));
@@ -334,13 +286,9 @@ async function pickNext(config) {
     if (!conv.enabled || conv.id === cur) continue;
     const row = byId.get(conv.id);
     if (!row) continue;
-    // Compare the row preview against the one we last acted on. This beats the
-    // unread dot, which clears when you read the message on your phone.
     if (row.snippet && row.snippet !== conv.lastSeenSnippet) candidates.push(conv);
   }
 
-  // Stamp when we first noticed, so the queue is first-come-first-served rather
-  // than letting a chatty conversation keep jumping ahead.
   for (const conv of candidates) {
     if (!conv.firstSeenDiffAt) {
       await autoSender.updateConversation(conv.id, (c) => { c.firstSeenDiffAt = now; });
@@ -348,7 +296,6 @@ async function pickNext(config) {
     }
   }
 
-  // Nothing waiting: make sure we are parked on a monitored conversation.
   if (!candidates.length) {
     if (!cur || !autoSender.getConversation(config, cur)) {
       const first = config.conversations.find((c) => c.enabled && byId.has(c.id));
@@ -368,11 +315,7 @@ async function pickNext(config) {
   return true;
 }
 
-// ---- boot -------------------------------------------------------------------
-
 (async function boot() {
-  // Stand down entirely if another Messages tab is already running the loop.
-  // Two tabs would fight over the single visible thread and double-reply.
   const mine = await autoSender.claimTab();
   if (!mine) {
     autoSender.warn('another Google Messages tab is already running pb-auto-reply. This tab will stay idle.');

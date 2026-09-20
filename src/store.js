@@ -1,11 +1,5 @@
 var autoSender = globalThis.autoSender || (globalThis.autoSender = {});
 
-// chrome.storage.local layout:
-//   "config"        -> { settings, conversations[], runtime, log[] }
-//   "msgs:<convId>" -> [ { seq, incoming, text, at } ]
-// Messages live under their own key so appending to one conversation does not
-// rewrite every other conversation's history.
-
 autoSender.DEFAULT_CONFIG = {
   settings: {
     enabled: false,
@@ -36,8 +30,6 @@ autoSender.setConfig = async function (config) {
   await chrome.storage.local.set({ config });
 };
 
-// Read-modify-write. Everything that touches config goes through here so two
-// callers in the same tick cannot clobber each other's field.
 autoSender.updateConfig = async function (fn) {
   const config = await autoSender.getConfig();
   const next = (await fn(config)) || config;
