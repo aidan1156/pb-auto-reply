@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <strong>pb-auto-reply</strong>
+      <a id="options" href="#">Settings</a>
+    </header>
+
+    <div id="status" class="status"></div>
+
+    <div class="row">
+      <label class="switch">
+        <input type="checkbox" id="enabled" />
+        <span>Monitoring on</span>
+      </label>
+    </div>
+    <div class="row">
+      <label class="switch">
+        <input type="checkbox" id="autoAccept" />
+        <span>Send without asking me</span>
+      </label>
+    </div>
+
+    <h2>Waiting for you</h2>
+    <div id="pending" class="pending"></div>
+
+    <h2>Recent</h2>
+    <div id="log" class="log"></div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

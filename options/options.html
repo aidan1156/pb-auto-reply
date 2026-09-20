@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>pb-auto-reply settings</title>
+    <link rel="stylesheet" href="../popup/popup.css" />
+    <style>
+      body { width: auto; max-width: 720px; padding: 24px; }
+      input[type='text'] {
+        width: 100%;
+        padding: 6px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--bg);
+        color: var(--fg);
+        font: inherit;
+      }
+      textarea.prompt {
+        width: 100%;
+        min-height: 90px;
+        resize: vertical;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 6px;
+        background: var(--bg);
+        color: var(--fg);
+        font: inherit;
+      }
+      .field { margin-bottom: 10px; }
+      .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+      .actions { justify-content: flex-end; }
+      .actions button { flex: 0 0 auto; padding: 6px 14px; }
+      .hint { color: var(--muted); font-size: 12px; margin: 4px 0 14px; }
+      code { background: var(--line); padding: 1px 4px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <h1 style="font-size: 17px; margin: 0 0 14px">pb-auto-reply settings</h1>
+
+    <div class="hint">
+      Drafts are written by <code>generateReply</code> in <code>src/reply.js</code>.
+      Your API key goes in <code>src/config.js</code> (gitignored) &mdash; copy
+      <code>src/config.example.js</code>.
+    </div>
+
+    <h2>Monitored conversations</h2>
+    <div class="hint">
+      Open a conversation in Google Messages and copy its URL. The id is the last
+      part: <code>messages.google.com/web/conversations/<b>CggYkv-QT44nSxIBOA</b></code>
+    </div>
+    <div id="list"></div>
+    <div class="actions" style="margin-top: 10px">
+      <button id="add">Add conversation</button>
+      <button id="save" class="primary">Save</button>
+    </div>
+    <div id="saved" class="hint"></div>
+
+    <script src="options.js"></script>
+  </body>
+</html>

@@ -1,0 +1,118 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1b1b1f;
+  --muted: #6b6b76;
+  --line: #e4e4ea;
+  --accent: #7c5cff;
+  --warn: #b4491f;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17171b;
+    --fg: #ececf1;
+    --muted: #9a9aa6;
+    --line: #2c2c34;
+    --accent: #9d86ff;
+    --warn: #ff9a6b;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  width: 340px;
+  margin: 0;
+  padding: 12px;
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.45 system-ui, -apple-system, Segoe UI, sans-serif;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+header a { color: var(--accent); font-size: 12px; text-decoration: none; }
+header a:hover { text-decoration: underline; }
+
+h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  margin: 16px 0 6px;
+}
+
+.status {
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.status.bad { color: var(--warn); border-color: var(--warn); }
+
+.row { margin: 6px 0; }
+
+.switch { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.switch input { accent-color: var(--accent); width: 15px; height: 15px; }
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px;
+  margin-bottom: 8px;
+}
+
+.card .who { font-weight: 600; margin-bottom: 6px; }
+
+.card textarea {
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.card .err { color: var(--warn); font-size: 12px; margin-top: 5px; }
+
+.actions { display: flex; gap: 6px; margin-top: 7px; }
+
+button {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:hover { filter: brightness(1.08); }
+
+.empty { color: var(--muted); font-size: 12px; padding: 4px 0; }
+
+.log div {
+  display: flex;
+  gap: 7px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.log .kind { color: var(--muted); flex: 0 0 52px; }
+.log .txt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

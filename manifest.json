@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "pb-auto-reply",
+  "version": "0.1.0",
+  "description": "Drafts and sends replies in monitored Google Messages conversations.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "debugger"
+  ],
+  "host_permissions": [
+    "https://messages.google.com/*",
+    "https://api.openai.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://messages.google.com/web/*"
+      ],
+      "js": [
+        "src/selectors.js",
+        "src/util.js",
+        "src/lock.js",
+        "src/store.js",
+        "src/dom.js",
+        "src/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "pb-auto-reply"
+  },
+  "options_page": "options/options.html"
+}
